@@ -1,3 +1,8 @@
 <resources>
-    <string name="app_name">Damlink</string>
+    <string name="app_name">담넘어</string>
+    <string name="common_url">http://damlink.deltaworks.co.kr</string>
+    <string name="content_list">timeline/time_01</string>
+    <string name="test_url">http://192.168.0.20:8090</string>
+    <string name="token_url">http://work.deltaworks.co.kr:8090</string>
+
 </resources>

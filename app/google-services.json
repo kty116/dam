@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "329506109834",
+    "firebase_url": "https://damlink-77e01.firebaseio.com",
+    "project_id": "damlink-77e01",
+    "storage_bucket": "damlink-77e01.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:329506109834:android:420423c99aada6ee",
+        "android_client_info": {
+          "package_name": "com.deltaworks.damlink"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "329506109834-kre2km3da8cdbpldh38nn9hof5qk27ql.apps.googleusercontent.com",
+          "client_type": 3
+        },
+        {
+          "client_id": "329506109834-kre2km3da8cdbpldh38nn9hof5qk27ql.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArNHIGimC8xHZfEu4sGdqV6dX1JSAtZ68"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,12 +5,17 @@ import android.util.Log;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.iid.FirebaseInstanceIdService;
 
+//import com.google.firebase.iid.FirebaseInstanceId;
+//import com.google.firebase.iid.FirebaseInstanceIdService;
+
+
 /**
  * Created by Administrator on 2018-03-21.
  */
 
 public class MyFirebaseInstanceIDService extends FirebaseInstanceIdService {
     private static final String TAG = "MyFirebaseIIDService";
+    public static String refreshedToken = null;  //널이면 새로 토큰이 발급되지 않았다. 즉 서버에 토큰값 있다
 
 //    private RetrofitLib retrofitLib = new RetrofitLib();
 
@@ -22,16 +27,17 @@ public class MyFirebaseInstanceIDService extends FirebaseInstanceIdService {
     // [START refresh_token]
     @Override
     public void onTokenRefresh() { //앱에서는 토큰값 알 필요없고 서버가 알아야함
+        Log.d(TAG, "onTokenRefresh: 토큰 만들어짐");
         //토큰 바뀌면 콜백
         // Get updated InstanceID token.
-        String refreshedToken = FirebaseInstanceId.getInstance().getToken();
+        refreshedToken = FirebaseInstanceId.getInstance().getToken();
         Log.d(TAG, "Refreshed token: " + refreshedToken);
 
         // If you want to send messages to this application instance or
         // manage this apps subscriptions on the server side, send the
         // Instance ID token to your app server.
         //토큰이 생성되면 서버로 값 보냄
-        sendRegistrationToServer(refreshedToken);
+//        sendRegistrationToServer(refreshedToken);
     }
     // [END refresh_token]
 
