@@ -2,17 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.deltaworks.damlink">
 
-    <uses-permission android:name="android.permission.BLUETOOTH" />                <!--블루투스-->
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />          <!--블루투스-->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />    <!--내부 저장소 쓰기-->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />    <!--내부 저장소 읽기-->
-    <uses-permission android:name="android.permission.INTERNET" />                 <!--인터넷-->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />     <!--네트워크 상태 접근-->
-    <!--<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />   &lt;!&ndash;gps&ndash;&gt;-->
-    <!--<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />-->
-    <uses-permission android:name="android.permission.CAMERA" />                    <!--카메라-->
+    <uses-permission android:name="android.permission.BLUETOOTH" /> <!-- 블루투스 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" /> <!-- 블루투스 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" /> <!-- 내부 저장소 쓰기 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" /> <!-- 내부 저장소 읽기 -->
+    <uses-permission android:name="android.permission.INTERNET" /> <!-- 인터넷 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- 네트워크 상태 접근 -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />   &lt;!&ndash;gps&ndash;&gt; -->
+    <!-- <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> -->
+    <uses-permission android:name="android.permission.CAMERA" /> <!-- 카메라 -->
     <uses-feature android:name="android.hardware.camera" />
-
 
     <application
         android:allowBackup="true"
@@ -22,7 +21,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-
         <provider
             android:name="android.support.v4.content.FileProvider"
             android:authorities="com.deltaworks.damlink.fileprovider"
@@ -33,9 +31,10 @@
                 android:resource="@xml/file_path" />
         </provider>
 
-        <!--액티비티-->
+        <!-- 액티비티 -->
         <activity
             android:name=".activity.MainActivity3"
+            android:launchMode="singleInstance"
             android:screenOrientation="portrait" />
         <activity
             android:name=".activity.SplashActivity"
@@ -47,13 +46,12 @@
             </intent-filter>
         </activity>
 
-        <!--파이어베이스 푸시 서비스-->
+        <!-- 파이어베이스 푸시 서비스 -->
         <service android:name=".push.MyFirebaseMessagingService">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-
         <service android:name=".push.MyFirebaseInstanceIDService">
             <intent-filter>
                 <action android:name="com.google.firebase.INSTANCE_ID_EVENT" />
@@ -63,11 +61,13 @@
         <activity
             android:name="me.iwf.photopicker.PhotoPickerActivity"
             android:theme="@style/photoPickerCustomTheme" />
-
         <activity
             android:name="me.iwf.photopicker.PhotoPagerActivity"
             android:theme="@style/photoPickerCustomTheme" />
 
-
+        <service
+            android:name=".push.PushConnectService"
+            android:exported="false"></service>
     </application>
+
 </manifest>

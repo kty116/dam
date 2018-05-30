@@ -1,7 +1,10 @@
 package com.deltaworks.damlink.push;
 
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
+import com.deltaworks.damlink.commonLib.TinyDB;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.iid.FirebaseInstanceIdService;
 
@@ -15,9 +18,17 @@ import com.google.firebase.iid.FirebaseInstanceIdService;
 
 public class MyFirebaseInstanceIDService extends FirebaseInstanceIdService {
     private static final String TAG = "MyFirebaseIIDService";
-    public static String refreshedToken = null;  //널이면 새로 토큰이 발급되지 않았다. 즉 서버에 토큰값 있다
+    public SharedPreferences mPref;
+    //    public static String refreshedToken = null;  //널이면 새로 토큰이 발급되지 않았다. 즉 서버에 토큰값 있다
 
 //    private RetrofitLib retrofitLib = new RetrofitLib();
+
+
+    @Override
+    public void onCreate() {
+        mPref = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        super.onCreate();
+    }
 
     /**
      * Called if InstanceID token is updated. This may occur if the security of
@@ -30,8 +41,14 @@ public class MyFirebaseInstanceIDService extends FirebaseInstanceIdService {
         Log.d(TAG, "onTokenRefresh: 토큰 만들어짐");
         //토큰 바뀌면 콜백
         // Get updated InstanceID token.
-        refreshedToken = FirebaseInstanceId.getInstance().getToken();
-        Log.d(TAG, "Refreshed token: " + refreshedToken);
+
+        String refreshedToken = FirebaseInstanceId.getInstance().getToken();
+
+        SharedPreferences.Editor editor = mPref.edit();
+
+        editor.putString("token", refreshedToken);
+
+        editor.commit();
 
         // If you want to send messages to this application instance or
         // manage this apps subscriptions on the server side, send the

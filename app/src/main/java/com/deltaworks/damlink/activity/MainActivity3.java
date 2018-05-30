@@ -1,12 +1,22 @@
 package com.deltaworks.damlink.activity;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.databinding.DataBindingUtil;
 import android.graphics.Bitmap;
+import android.media.RingtoneManager;
 import android.net.Uri;
+import android.net.http.HttpResponseCache;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.view.PagerAdapter;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -17,6 +27,8 @@ import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -26,9 +38,12 @@ import com.deltaworks.damlink.R;
 import com.deltaworks.damlink.databinding.ActivityMainBinding;
 import com.deltaworks.damlink.model.TokenModel;
 import com.deltaworks.damlink.push.MyFirebaseInstanceIDService;
+import com.deltaworks.damlink.push.MyFirebaseMessagingService;
+import com.deltaworks.damlink.push.PushConnectService;
 import com.deltaworks.damlink.retrofit.RetrofitLib;
 import com.deltaworks.damlink.util.EditImageUtil;
 import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.messaging.RemoteMessage;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -37,6 +52,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpCookie;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -47,19 +63,26 @@ import javax.net.ssl.HttpsURLConnection;
 
 import me.iwf.photopicker.PhotoPicker;
 import me.iwf.photopicker.PhotoPreview;
+import okhttp3.OkHttpClient;
 import okhttp3.ResponseBody;
+import okhttp3.internal.http.HttpHeaders;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import retrofit2.http.PUT;
 
 public class MainActivity3 extends AppCompatActivity {
 
     public final String TAG = MainActivity3.class.getSimpleName();
+    public final int POST = 1;
+    public final int DELETE = 2;
+    public final int PUT = 3;
     private ActivityMainBinding binding;
     private PagerAdapter pagerAdapter;
     private final long FINISH_INTERVAL_TIME = 2000;
     private long backPressedTime = 0;
-//    public static boolean sVisibleActivity;  //화면 보이면 노티 눌렀을때 다시 액티비티 켜지지 않게 설정하는 변수
+    public static boolean sVisibleActivity;  //화면 보이면 노티 눌렀을때 다시 액티비티 켜지지 않게 설정하는 변수
+
 
     private URL mUrl;
 
@@ -75,6 +98,8 @@ public class MainActivity3 extends AppCompatActivity {
     private RetrofitLib mRetrofitLib;
     private boolean isTokenLogin = false;
 
+    private SharedPreferences mPref;
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
@@ -84,79 +109,72 @@ public class MainActivity3 extends AppCompatActivity {
                 (requestCode == PhotoPicker.REQUEST_CODE || requestCode == PhotoPreview.REQUEST_CODE)) {
 
             List<String> photos = null;
-            if (intent != null) {  //선택된 사진 있을때
-                Log.d(TAG, "onActivityResult: intent가 널이 아닐때");
+            if (intent != null) {
                 photos = intent.getStringArrayListExtra(PhotoPicker.KEY_SELECTED_PHOTOS);
             }
 
             if (photos != null) { //선택된 사진 없
                 if (Build.VERSION.SDK_INT >= 21) {
-                    Log.d(TAG, "onActivityResult: photos가 널이 아닐때");
 
                     boolean fileSizeIsLessThan10MB = true;
                     int count = 0;
+                    long totalFileSize = 0;
 
                     ArrayList<String> photosList = (ArrayList) photos;
                     for (String uri : photosList) {
                         File file = new File(String.valueOf(uri));
                         if (file.exists()) {
                             count++;
-                            Log.d(TAG, "onActivityResult: 사진 갯수" + count);
-                            long fileSize = file.length();
-                            Log.d(TAG, "onActivityResult: " + fileSize + "10485760");
-                            if (fileSize >= 10485760) {
-                                fileSizeIsLessThan10MB = false;
-                            }
+                            long fileSizeByte = file.length();  //선택한 사진 사이즈 (Byte)
+                            totalFileSize += fileSizeByte;
+                            Log.d(TAG, "onActivityResult: " + totalFileSize);
+
                         }
                     }
 
+                    long fileSizeMByte = totalFileSize / 1024 / 1024;  //MB로 변환
+                    Log.d(TAG, "onActivityResult: " + fileSizeMByte);
 
-                    ArrayList<Uri> list = new ArrayList<>();
-//                    int count = 0;
-//                    for (Uri uri : list) {
-//                        Log.d(TAG, "onActivityResult: ");
-//                        File file = new File(String.valueOf(uri));
-//                        if (file.exists()) {
-//                            count++;
-//                            Log.d(TAG, "onActivityResult: 사진 갯수"+count);
-//                            long fileSize = file.length();
-//                            Log.d(TAG, "onActivityResult: "+fileSize + "10485760");
-//                            if(fileSize >= 10485760){
-//                                fileSizeIsLessThan10MB = false;
-//                            }
-//                        }
-//                    }
-                    Uri[] results = null;
-                    Uri[] re = new Uri[photos.size()];
-                    if (mUMA == null) {
-                        Log.d(TAG, "onActivityResult: 파일 없음");
-                        mUMA.onReceiveValue(null);
+                    if (fileSizeMByte > 10) {
+                        fileSizeIsLessThan10MB = false;
                     }
 
-                    if (mCM != null) {
-                        for (int i = 0; i < photos.size(); i++) {
-                            Log.d(TAG, "onActivityResult: dd");
-                            list.add(Uri.parse(mCM + photos.get(i)));
-                            re[i] = list.get(i);
-                            try {
-                                editImageUtil.rotateImage(this, photos.get(i));
-                            }catch (Exception e){
-                                //sdcard에 사진이 저장된 상태고 현재 usb 저장소를 사용중이라면 sdcard에 lock이 걸려 file에 접근을 할수 없기 때문에
-                                // fileNotFoundException이 나온다
+                    if (fileSizeIsLessThan10MB) {  //사진크기가 10mb 이하일때
+                        ArrayList<Uri> list = new ArrayList<>();
+
+                        Uri[] results = null;
+                        Uri[] re = new Uri[photos.size()];
+                        if (mUMA == null) {
+                            Log.d(TAG, "onActivityResult: 파일 없음");
+                            mUMA.onReceiveValue(null);
+                        }
+
+                        if (mCM != null) {
+                            for (int i = 0; i < photos.size(); i++) {
+                                Log.d(TAG, "onActivityResult: dd");
+                                list.add(Uri.parse(mCM + photos.get(i)));
+                                re[i] = list.get(i);
+                                try {
+                                    editImageUtil.rotateImage(this, photos.get(i));
+                                } catch (Exception e) {
+                                    //sdcard에 사진이 저장된 상태고 현재 usb 저장소를 사용중이라면 sdcard에 lock이 걸려 file에 접근을 할수 없기 때문에
+                                    // fileNotFoundException이 나온다
+                                }
                             }
                         }
-                    }
 
-                    if (fileSizeIsLessThan10MB) {
+                        Log.d(TAG, "onActivityResult: 사진 10MB 이하");
                         mUMA.onReceiveValue(re);
+
                     } else {
-                        Toast.makeText(this, "사진 크기는 10MB 이하여야합니다.", Toast.LENGTH_SHORT).show();
+                        //사진크기가 10mb 이상일때
+                        mUMA.onReceiveValue(null);
+                        Toast.makeText(this, "사진 크기는 10MB 이하여야합니다.", Toast.LENGTH_LONG).show();
                     }
 
                     mUMA = null;
 
                 } else {
-                    Log.d(TAG, "onActivityResult: ");
                     if (mUM == null) {
                         mUM.onReceiveValue(null);
                     }
@@ -165,7 +183,7 @@ public class MainActivity3 extends AppCompatActivity {
                     mUM = null;
                 }
             }
-        } else {
+        } else {  //선택된 사진 없을때
             if (mUMA != null) {
                 mUMA.onReceiveValue(null);
                 mUMA = null;
@@ -181,15 +199,14 @@ public class MainActivity3 extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
+        mPref = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
 
         editImageUtil = new EditImageUtil();
         mRetrofitLib = new RetrofitLib();
 
-//        refreshedToken = FirebaseInstanceId.getInstance().getToken();
-//        Log.d(TAG, "shouldOverrideUrlLoading: "+refreshedToken);
-
-
+//        sendTokenToServer(POST);
         WebSettings webSettings = binding.webView.getSettings();
 
         webSettings.setSaveFormData(true);
@@ -275,66 +292,36 @@ public class MainActivity3 extends AppCompatActivity {
                 super.onPageFinished(view, url);
                 binding.progressBar.setVisibility(View.INVISIBLE);
 
-                if (MyFirebaseInstanceIDService.refreshedToken != null) {  //토큰값이 새로 생겼을때
-
-                    if (isTokenLogin == false) {  //토큰값 안넘겨졌을때 false일때(계속 서버에 넘기는 작업), false고 토큰값이 서버로 잘 넘겨졌을때 true로 변함
-
-                        CookieManager cookieManager = CookieManager.getInstance();
-                        String cookies = cookieManager.getCookie(url);
-
-
-                        Log.d(TAG, "shouldOverrideUrlLoading: " + cookies);
-
-                        if (cookies != null) {
-
-                            if (cookies.contains("access_token")) {
-                                int accessTokenIndex = cookies.indexOf("access_token=") + 13;
-                                String accessToken = cookies.substring(accessTokenIndex);
-                                if(accessToken.contains(";")){
-                                    Log.d(TAG, "onPageFinished: "+accessToken);
-                                    accessToken = accessToken.substring(0,accessToken.indexOf(";"));
-                                }
-                                Log.d(TAG, "onPageFinished: "+accessToken);
-//                        mAccessToken = accessTokenString.substring(0, accessTokenString.indexOf(";"));
-
-                                Log.d(TAG, "shouldOverrideUrlLoading: " + accessToken);
-
-//                            isAccessToken = "1";  //값 있음
-
-                                sendTokenToServer(MyFirebaseInstanceIDService.refreshedToken, accessToken);
-                            }
-                            //쿠키에 값이 있으면 로그인 된 상태
+//                if (MyFirebaseInstanceIDService.refreshedToken != null) {  //토큰값이 새로 생겼을때
 //
-//                            Log.d(TAG, "shouldOverrideUrlLoading: 리플레쉬된 토큰값 있음");
-//                            sendTokenToServer();
-
-
-//                            try {
-//                                String tokenUrl = "token=" + URLEncoder.encode(MyFirebaseInstanceIDService.refreshedToken,"UTF-8");
-//                                binding.webView.postUrl(getString(R.string.token_url),tokenUrl.getBytes());
+//                    if (isTokenLogin == false) {  //토큰값 안넘겨졌을때 false일때(계속 서버에 넘기는 작업), false고 토큰값이 서버로 잘 넘겨졌을때 true로 변함
 //
-//                            } catch (UnsupportedEncodingException e) {
-//                                e.printStackTrace();
+//                        CookieManager cookieManager = CookieManager.getInstance();
+//                        String cookies = cookieManager.getCookie(url);
+//
+//
+//                        Log.d(TAG, "shouldOverrideUrlLoading: " + cookies);
+//
+//                        if (cookies != null) {
+//
+//                            if (cookies.contains("access_token")) {
+//                                int accessTokenIndex = cookies.indexOf("access_token=") + 13;
+//                                String accessToken = cookies.substring(accessTokenIndex);
+//                                if (accessToken.contains(";")) {
+//                                    Log.d(TAG, "onPageFinished: " + accessToken);
+//                                    accessToken = accessToken.substring(0, accessToken.indexOf(";"));
+//                                }
+//                                Log.d(TAG, "onPageFinished: " + accessToken);
+//
+//                                Log.d(TAG, "shouldOverrideUrlLoading: " + accessToken);
+//
+//                                sendTokenToServer(MyFirebaseInstanceIDService.refreshedToken, accessToken);
 //                            }
-
-
+//                        } else {
+//                            isAccessToken = null;
 //                        }
-
-                        } else {
-                            isAccessToken = null;
-                        }
-
-//                    Log.d(TAG, "shouldOverrideUrlLoading: " + mRememberMe);
-                    }
-
-//                if(mRememberMe!=null) {
-//                    String tokenUrl = "token=" + URLEncoder.encode()
+//                    }
 //                }
-
-//                if (url.equals(getString(R.string.test_url))) {
-//                    Log.d(TAG, "onPageFinished: 메인 엑세스로 접근");
-//                    isMainAccess = true;
-                }
             }
 
             @Override
@@ -351,26 +338,57 @@ public class MainActivity3 extends AppCompatActivity {
         });
 
         webSettings.setJavaScriptEnabled(true);
-        binding.webView.loadUrl(getString(R.string.test_url));
+        binding.webView.loadUrl(getString(R.string.token_url));
 
     }
 
-    public void sendTokenToServer(String deviceToken, String accessToken) {
+    public void sendTokenToServer(final int howTo, final String userId) {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
+        String token = mPref.getString("token", null);
 
-        Call<TokenModel> tokenRequestCall = mRetrofitLib.getRetrofit(this).sendToken(deviceToken, accessToken);
+        Log.d(TAG, "sendTokenToServer: " + token);
+        Call<TokenModel> tokenRequestCall = null;
+
+        switch (howTo) {
+            case POST:
+                tokenRequestCall = mRetrofitLib.getRetrofit(this).sendTokenPost(token, userId);
+                break;
+
+            case DELETE:
+                tokenRequestCall = mRetrofitLib.getRetrofit(this).sendTokenDelete(token, userId);
+                break;
+
+            case PUT:
+                tokenRequestCall = mRetrofitLib.getRetrofit(this).sendTokenPut(token, userId);
+                break;
+        }
 
         tokenRequestCall.enqueue(new Callback<TokenModel>() {
             @Override
             public void onResponse(Call<TokenModel> call, Response<TokenModel> response) {
                 if (response.isSuccessful()) {
 
-                    Log.d(TAG, "json 값: " + response.body().toString());
+                    Log.d(TAG, "json 값: " + response.body().getKey());
 
-                    if (response.body().getValid() == "true") {  //access 토큰값이 제대로 된 값이 아닐때
-                        isTokenLogin = true;
+                    if (response.body().getKey() == null) {  //access 토큰값이 제대로 된 값이 아닐때
+                        Log.d(TAG, "onResponse: ");
+                        switch (howTo) {
+                            case POST:
+                                sendTokenToServer(POST, userId);
+                                break;
+                            case DELETE:
+                                sendTokenToServer(DELETE, userId);
+                                break;
+                            case PUT:
+                                sendTokenToServer(PUT, userId);
+                                break;
+                        }
                     }
-
                 }
             }
 
@@ -379,10 +397,9 @@ public class MainActivity3 extends AppCompatActivity {
                 Log.d(TAG, "실패" + t.toString());
 
             }
-
         });
-
     }
+
 
     public String convertToString(InputStream inputStream) {
         StringBuffer string = new StringBuffer();
@@ -415,7 +432,7 @@ public class MainActivity3 extends AppCompatActivity {
                         .start(MainActivity3.this);
             }
 
-        } else if (url.contains(getString(R.string.test_url))) {
+        } else if (url.contains(getString(R.string.token_url))) {
             PhotoPicker.builder()
                     .setShowCamera(true)
                     .setPhotoCount(1)
@@ -427,13 +444,24 @@ public class MainActivity3 extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-//        sVisibleActivity = true;
+
+        sVisibleActivity = true;
+        Log.d(TAG, "onResume: ");
+
+//        String title = "title";
+//        String message = "message";
+//
+//        Intent gattServiceIntent = new Intent(this, PushConnectService.class);
+//        gattServiceIntent.setAction(MyFirebaseMessagingService.ACTION_START_NOTI);
+//        gattServiceIntent.putExtra("title", title);
+//        gattServiceIntent.putExtra("message", message);
+//        startService(gattServiceIntent);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-//        sVisibleActivity = false;
+        sVisibleActivity = false;
 
     }
 
@@ -467,39 +495,7 @@ public class MainActivity3 extends AppCompatActivity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if ((keyCode == KeyEvent.KEYCODE_BACK) && binding.webView.canGoBack()) {  //메인인데 뒤로 갈 수 있으면
-
-//            String url = String.valueOf(mUrl);
-//            Log.d(TAG, "onKeyDown: " + url);
-
-//            if (url.contains("login")) {
-//                Log.d(TAG, "onKeyDown: login");
-//                if (mRememberMe == null) {
-//                    Log.d(TAG, "onKeyDown: mRememberMe == null");
-//                    binding.webView.goBack();
-//                } else {
-//                    Log.d(TAG, "onKeyDown: mRememberMe != null");
-//                }
-//            } else {
-//            if (!isLogin) {
-//                Log.d(TAG, "onKeyDown: login x");
             binding.webView.goBack();
-//            } else {
-//                onBackPressed();
-//            }
-//            }
-
-
-//            Log.d(TAG, "onKeyDown: "+mUri);
-//            if (mUri.contains("login")) {  //로그인 포함되면
-//                if (mRememberMe != null) {  //세션값이 널이 아닐때
-//                    Log.d(TAG, "onKeyDown: " + mUri);
-//                    onBackPressed();
-//                } else {
-//                    binding.webView.goBack();
-//                }
-//            } else {
-//                binding.webView.goBack();
-//            }
             return true;
         }
 
@@ -510,7 +506,7 @@ public class MainActivity3 extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-//        sVisibleActivity = false;
+        sVisibleActivity = false;
     }
 
     public class MyJavascriptInterface {
@@ -519,17 +515,25 @@ public class MainActivity3 extends AppCompatActivity {
         public void kakaoNavi(final String url) {
             Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             startActivity(browserIntent);
-//            binding.webView.post(new Runnable() {
-//                @Override
-//                public void run() {
-//                    Log.d(TAG, "run: "+url);
-//                    Log.d(TAG, "kakaoNavi: ");
-//                    binding.webView.loadUrl(url);
-//                }
-//            });
         }
 
+        @JavascriptInterface
+        public void postDeviceToken(String userId) {
+            Log.d(TAG, "postDeviceToken: ");
+            sendTokenToServer(POST, userId);
+        }
 
+        @JavascriptInterface
+        public void deleteDeviceToken(String userId) {
+            Log.d(TAG, "deleteDeviceToken: ");
+            sendTokenToServer(DELETE, userId);
+        }
+
+        @JavascriptInterface
+        public void putDeviceToken(String userId) {
+            Log.d(TAG, "putDeviceToken: ");
+            sendTokenToServer(PUT, userId);
+        }
     }
 
     public static void cookieMaker(String url) {
@@ -564,4 +568,6 @@ public class MainActivity3 extends AppCompatActivity {
 
         }
     }
+
+
 }

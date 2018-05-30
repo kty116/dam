@@ -22,6 +22,7 @@ import android.widget.Toast;
 import com.deltaworks.damlink.R;
 import com.deltaworks.damlink.push.MyFirebaseInstanceIDService;
 import com.deltaworks.damlink.push.MyFirebaseMessagingService;
+import com.deltaworks.damlink.push.PushConnectService;
 import com.gun0912.tedpermission.PermissionListener;
 import com.gun0912.tedpermission.TedPermission;
 
@@ -40,14 +41,17 @@ public class SplashActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+
         setContentView(R.layout.activity_splash);
 
-        mPref = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        mPref = PreferenceManager.getDefaultSharedPreferences(
+                getApplicationContext());
 
-
-        mManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-
+        mManager = (ConnectivityManager)
+                getSystemService(Context.CONNECTIVITY_SERVICE);
         networkCheck();
+
+
     }
 
     @Override
@@ -57,9 +61,9 @@ public class SplashActivity extends AppCompatActivity {
         editor.commit();
 
         int pushCount = mPref.getInt(MyFirebaseMessagingService.PUSH_COUNT, 0);
-        Log.d("dd", "onResume: "+pushCount);
+        Log.d("dd", "onResume: " + pushCount);
 
-        MyFirebaseMessagingService.setBadge(this, pushCount);
+        PushConnectService.setBadge(this, pushCount);
         super.onResume();
     }
 
